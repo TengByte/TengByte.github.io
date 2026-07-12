@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>"Designing tools LLMs can actually use: five failure modes I keep seeing" · Teng Li</title>
+<meta name="description" content="Your tool API can be perfectly engineered and still confuse every model that touches it. Field notes on why, from someone who integrates agent tools for a living.">
+<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="application/rss+xml" title="Teng Li" href="/feed.xml">
+</head>
+<body>
+<main>
+<header class="site">
+  <a class="name" href="/">Teng Li <span>· ML Engineering</span></a>
+  <nav><a href="/">Posts</a><a href="/about.html">About</a><a href="/feed.xml">RSS</a></nav>
+</header>
+<article><h1>"Designing tools LLMs can actually use: five failure modes I keep seeing"</h1>
+<p class="post-meta"><time datetime="2026-07-12">2026-07-12</time></p>
+<p>I integrate tools into a production AI agent for a living — first-party ones,
+third-party ones, HTTP APIs wrapped as tools, MCP servers. After enough
+integrations, you notice something uncomfortable: <strong>whether a model uses a tool
+correctly has surprisingly little to do with how well the tool is engineered.</strong></p>
+<p>A tool can have clean code, solid auth, perfect uptime — and the model still
+picks the wrong one, invents arguments, or ignores it entirely. The failures
+cluster into a handful of patterns. Here are the five I keep seeing.</p>
+<h2>1. The parameter with no description</h2>
+<p>The single most common failure, by a wide margin.</p>
+<pre><code class="language-json">&quot;url&quot;: { &quot;type&quot;: &quot;string&quot; }
+</code></pre>
+<p>Your type system knows this is a string. The model needs to know <em>which</em> URL —
+the full page URL? just the domain? with or without protocol? URL-encoded?
+A model facing an undocumented parameter doesn&#39;t stop and ask. It guesses.
+Sometimes it guesses right. In production, &quot;sometimes&quot; is a bug report.</p>
+<p>The root cause is almost always schema generation: zod, Pydantic, or an
+OpenAPI converter produces structurally perfect schemas with zero semantics,
+and nobody goes back to add <code>.describe()</code>. The type checker is satisfied.
+The model is starving.</p>
+<p><strong>The fix costs an hour:</strong> every parameter gets a description with format and
+one example value. It is the highest-leverage hour you can spend on agent
+reliability, and nobody spends it.</p>
+<h2>2. Tools that compete for the same intent</h2>
+<p><code>get_user</code> and <code>get_users</code>. <code>search_docs</code> and <code>query_docs</code>. <code>send_message</code>
+and <code>post_message</code>.</p>
+<p>To you, the difference is obvious — you wrote them. To a model doing tool
+selection over a catalog it has never seen before, two near-identical names
+with near-identical descriptions is a coin flip. And a coin flip at step 2 of
+a 6-step task is a 50% failure rate you&#39;ll never reproduce locally.</p>
+<p>Two rules of thumb: if two tools&#39; descriptions could be swapped without
+anyone noticing, the model can&#39;t tell them apart either. And every
+description should answer <em>when to use this instead of the neighbors</em> — the
+best catalogs cross-reference (&quot;for bulk queries, use X instead&quot;).</p>
+<h2>3. Prose constraints instead of schema constraints</h2>
+<pre><code class="language-json">&quot;status&quot;: {
+  &quot;type&quot;: &quot;string&quot;,
+  &quot;description&quot;: &quot;Must be one of: active, inactive, banned&quot;
+}
+</code></pre>
+<p>That constraint lives in prose, which means the model <em>can</em> violate it.
+Move it into <code>&quot;enum&quot;: [&quot;active&quot;, &quot;inactive&quot;, &quot;banned&quot;]</code> and it <em>can&#39;t</em> —
+most inference stacks enforce enums at decoding time.</p>
+<p>The general principle: <strong>anything the schema can express, the schema should
+express.</strong> Descriptions are for semantics; constraints belong in the type
+system. Every constraint you leave in prose is a runtime error you&#39;ve chosen
+to discover later.</p>
+<h2>4. The catalog tax</h2>
+<p>Every tool you expose gets serialized into every single request. A catalog
+with 25 tools and generous schemas can cost several thousand tokens <em>before
+the user has typed a word</em> — you pay it on every turn, forever.</p>
+<p>Worse than the money: selection accuracy degrades as catalogs grow. The model
+attends over everything; ten sharply-differentiated tools reliably beat
+thirty overlapping ones on both cost and correctness.</p>
+<p>If your catalog is large, split it by domain, or gate rarely-used tools
+behind a mode. Your token bill and your error rate will both thank you.</p>
+<h2>5. Errors that strand the model</h2>
+<p>When a model calls your tool wrong, your error message is the only feedback
+loop it has. Compare:</p>
+<blockquote>
+<p><code>Internal Server Error</code></p>
+</blockquote>
+<blockquote>
+<p><code>Missing required parameter &quot;query&quot;. Expected a free-text search string, e.g. &quot;login bug&quot;.</code></p>
+</blockquote>
+<p>The first strands the model — it will retry the same call, or give up, or
+hallucinate a workaround. The second lets it self-correct <em>in one turn</em>.
+Error messages are prompts. Write them like prompts.</p>
+<p>There&#39;s a nastier variant: the tool that silently <em>accepts</em> an invalid call —
+declared <code>required</code> fields that aren&#39;t actually enforced, so the call
+&quot;succeeds&quot; with <code>undefined</code> in the payload. A model can recover from a good
+error. It cannot recover from a lie.</p>
+<h2>The common thread</h2>
+<p>None of these are engineering problems in the traditional sense. The code is
+fine. They&#39;re <em>writing</em> problems — descriptions, names, error messages — the
+parts that don&#39;t show up in code review because they don&#39;t break tests.</p>
+<p>The mental model that helps: your tool definition is not an API contract,
+<strong>it&#39;s a prompt</strong>. It gets read by a language model under time pressure with
+no documentation open in another tab. Write it the way you&#39;d write for a
+sharp intern on their first day: what this does, when to use it, what comes
+back, and what to do when it fails.</p>
+<p>The teams that internalize this ship tools that agents use correctly on the
+first try. The teams that don&#39;t file bugs against the model.</p>
+<hr>
+<p><em>Next up: how widespread are these failure modes across the MCP ecosystem,
+actually? I&#39;ve been collecting data. It is not flattering. Stay tuned.</em></p>
+</article>
+<footer class="site">© 2026 Teng Li · <a href="/feed.xml">RSS</a></footer>
+</main>
+</body>
+</html>

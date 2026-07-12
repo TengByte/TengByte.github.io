@@ -46,6 +46,14 @@ h2 { font-size: 1.25rem; margin-top: 2.2rem; }
 h3 { font-size: 1.05rem; margin-top: 1.8rem; }
 a { color: var(--accent); }
 .post-meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+.hero {
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.65;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.6rem;
+  margin: 0 0 1.2rem;
+}
 ul.post-list { list-style: none; padding: 0; }
 ul.post-list li {
   display: flex;

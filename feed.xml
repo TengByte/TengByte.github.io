@@ -4,6 +4,13 @@
   <link>https://tengli.dev</link>
   <description>Teng Li — ML Engineering</description>
   <item>
+    <title>"Designing tools LLMs can actually use: five failure modes I keep seeing"</title>
+    <link>https://tengli.dev/posts/tool-design-for-llms.html</link>
+    <guid>https://tengli.dev/posts/tool-design-for-llms.html</guid>
+    <pubDate>Sun, 12 Jul 2026 00:00:00 GMT</pubDate>
+    <description>Your tool API can be perfectly engineered and still confuse every model that touches it. Field notes on why, from someone who integrates agent tools for a living.</description>
+  </item>
+  <item>
     <title>Why this blog exists</title>
     <link>https://tengli.dev/posts/hello-world.html</link>
     <guid>https://tengli.dev/posts/hello-world.html</guid>
