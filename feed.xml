@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"><channel>
-  <title>Teng Li · ML Engineering</title>
+  <title>Teng Li · ML Engineer</title>
   <link>https://tengli.dev</link>
-  <description>Teng Li — ML Engineering</description>
+  <description>Teng Li — ML Engineer</description>
   <item>
     <title>Designing tools LLMs can actually use: five failure modes I keep seeing</title>
     <link>https://tengli.dev/posts/tool-design-for-llms.html</link>
