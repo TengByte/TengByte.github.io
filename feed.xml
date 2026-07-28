@@ -4,6 +4,13 @@
   <link>https://tengli.dev</link>
   <description>Teng Li — ML Engineer</description>
   <item>
+    <title>My eval said a perfect MCP server was broken. It was the eval that was lying.</title>
+    <link>https://tengli.dev/posts/calibrating-mcp-evals.html</link>
+    <guid>https://tengli.dev/posts/calibrating-mcp-evals.html</guid>
+    <pubDate>Mon, 27 Jul 2026 00:00:00 GMT</pubDate>
+    <description>Three rounds of calibration, four real servers, $0.60 in API costs — how I made an LLM-powered tool-selection benchmark fair enough to publish, and what it revealed about static lint rules predicting live model behavior.</description>
+  </item>
+  <item>
     <title>I lint-scanned 36 popular MCP servers. A third of them are failing your agent.</title>
     <link>https://tengli.dev/posts/mcp-servers-failing-agents.html</link>
     <guid>https://tengli.dev/posts/mcp-servers-failing-agents.html</guid>

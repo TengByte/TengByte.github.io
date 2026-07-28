@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My eval said a perfect MCP server was broken. It was the eval that was lying. · Teng Li</title>
+<meta name="description" content="Three rounds of calibration, four real servers, $0.60 in API costs — how I made an LLM-powered tool-selection benchmark fair enough to publish, and what it revealed about static lint rules predicting live model behavior.">
+<meta property="og:title" content="My eval said a perfect MCP server was broken. It was the eval that was lying. · Teng Li">
+<meta property="og:description" content="Three rounds of calibration, four real servers, $0.60 in API costs — how I made an LLM-powered tool-selection benchmark fair enough to publish, and what it revealed about static lint rules predicting live model behavior.">
+<meta property="og:image" content="https://tengli.dev/og-card.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tengli.dev/og-card.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="application/rss+xml" title="Teng Li" href="/feed.xml">
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "defe20d26eeb449a922ccc8369be85c0"}'></script>
+</head>
+<body>
+<main>
+<header class="site">
+  <a class="name" href="/">Teng Li <span>· ML Engineer</span></a>
+  <nav><a href="/">Home</a><a href="/writing.html">Writing</a><a href="/about.html">About</a><a href="/feed.xml">RSS</a></nav>
+</header>
+<article>
+<h1>My eval said a perfect MCP server was broken. It was the eval that was lying.</h1>
+<p class="post-meta"><time datetime="2026-07-27">2026-07-27</time><span class="chips"><span class="chip">Agents</span><span class="chip">MCP</span><span class="chip">Engineering</span></span></p>
+<p>When I added an LLM-powered eval to <a href="https://github.com/TengByte/mcpgrade">mcpgrade</a>, the first real run produced a result that looked like a scoop: context7 — a server with a <em>perfect</em> static score — failed tool selection 62% of the time. A model shown its two-tool catalog picked the &quot;wrong&quot; tool on 5 of 8 tasks.</p>
+<p>If I had shipped that number, it would have been wrong. Not slightly wrong — systematically, unfairly wrong. This post is about how I caught it, because the failure mode generalizes to most agent benchmarks people are building right now.</p>
+<h2>The setup</h2>
+<p>mcpgrade&#39;s <code>--eval</code> mode works like this: it reads a server&#39;s tool catalog, synthesizes realistic single-step tasks (&quot;find the Slack channel where the incident was discussed&quot;), shows a model the full catalog, and measures three things — does it pick the right tool, does it fill valid arguments, and does it correctly <em>refuse</em> tasks that no tool can handle.</p>
+<p>Round 1, on three real servers, cost about twelve cents and produced this:</p>
+<table>
+<thead>
+<tr>
+<th>Server</th>
+<th>Static score</th>
+<th>Tool selection</th>
+<th>Args</th>
+<th>Refusal</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>context7 (2 tools)</td>
+<td>100</td>
+<td><strong>38%</strong></td>
+<td>100%</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>server-memory (9 tools)</td>
+<td>81</td>
+<td>93%</td>
+<td>100%</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>server-slack (8 tools)</td>
+<td>97</td>
+<td><strong>54%</strong></td>
+<td>100%</td>
+<td>100%</td>
+</tr>
+</tbody></table>
+<p>Two servers with excellent static scores, apparently failing live. Either static analysis was worthless, or the eval was broken.</p>
+<h2>The eval was broken</h2>
+<p>Every &quot;miss&quot; traced to one cause. Slack&#39;s <code>post_message</code> needs a <code>thread_ts</code> — a value you can only get from a <em>previous</em> call to <code>get_channel_history</code>. context7&#39;s <code>get-library-docs</code> needs a library ID that comes from <code>resolve-library-id</code>. These are <strong>pipelined tools</strong>: their required arguments are produced by other tools.</p>
+<p>My task synthesizer didn&#39;t know that. It generated tasks like &quot;reply to the thread about the outage&quot; — without a thread timestamp. The model, quite sensibly, picked <code>get_channel_history</code> first (to find the thread), or declined. My grader marked both choices wrong.</p>
+<p>The model wasn&#39;t confused. The model was <em>right</em>. The benchmark was grading correct multi-step reasoning as failure — and memory&#39;s 93% was the tell all along: its tools are single-step, so it scored fine.</p>
+<p>The fix was one constraint in the synthesis prompt: <strong>every task must embed concrete values for every required parameter.</strong> &quot;Reply to thread 1721581200.123456 in #incidents&quot; — now single-shot selection is a fair question. Round 2: context7 38% → 100%, slack 54% → 100%.</p>
+<p>If your agent benchmark shows a capable model failing on tools that real users navigate fine, check whether you&#39;re asking one-step questions about multi-step tools. In my experience most home-grown &quot;tool selection accuracy&quot; numbers have this bug quietly inflating their failure rates.</p>
+<h2>Round 3: does it discriminate?</h2>
+<p>A benchmark that gives everyone 100% is decoration. So round 3 pointed the fixed eval at firecrawl — 26 tools, the lowest static score in my <a href="/posts/mcp-servers-failing-agents.html">36-server scan</a>. If the eval is measuring something real, a messy catalog should score worse. It did, in two specific ways:</p>
+<p><strong>1. Selection misses landed exactly on the naming collisions static rules had flagged.</strong> 84% selection accuracy, and the 16% wasn&#39;t random: <code>extract</code>↔<code>scrape</code>, <code>agent_status</code>↔<code>check_crawl_status</code>, <code>feedback</code>↔<code>search_feedback</code> — the same confusable pairs the static rules (N002, C001) had already flagged from names and descriptions alone. That&#39;s the result I most wanted: <strong>static lint predicts live model confusion.</strong> The cheap, free, ten-second scan finds the same failure points as the LLM eval.</p>
+<p><strong>2. Refusal collapsed.</strong> Given deliberately out-of-scope tasks, models refused correctly 100% of the time on small, well-documented catalogs — and <strong>50%</strong> of the time on firecrawl&#39;s 26 fuzzy tools. Half the time, the model &quot;found&quot; a plausible-sounding tool and called it anyway. Big vague catalogs don&#39;t just cause wrong picks; they cause <em>action when inaction is correct</em>, which in production is the scariest failure mode there is. Nobody reviews the agent that confidently did something.</p>
+<h2>What three rounds bought me</h2>
+<p>The whole calibration — three rounds, four servers — cost about $0.60 on a small model. For that I got answers to the three questions any eval must survive:</p>
+<ol>
+<li><strong>Is it fair?</strong> After the synthesis fix, well-designed servers score 100%. Failures now mean something.</li>
+<li><strong>Does it discriminate?</strong> Messy catalogs score measurably worse, in interpretable ways.</li>
+<li><strong>Is it affordable?</strong> ~$0.04–0.2 per server. Running it on every PR is a rounding error.</li>
+</ol>
+<p>Most benchmark builders skip straight to leaderboards. The calibration step — deliberately trying to prove your own metric is lying — is cheap, unglamorous, and the only thing separating a measurement from a random number generator with axes.</p>
+<h2>The calibration isn&#39;t finished — a reader proved it</h2>
+<p>Within a day of the launch post, a reader (<a href="https://dev.to/mads_hansen_27b33ebfee4c9/comment/3bjlc">Mads Hansen, in the dev.to comments</a>) pointed out two flaws I hadn&#39;t caught, and he&#39;s right on both.</p>
+<p>First: my outcome taxonomy is still too coarse. &quot;Refusal&quot; currently lumps together a model that <em>asks a clarifying question</em> and a model that <em>declines outright</em> — and neither is separated from the truly dangerous outcome, confidently calling a plausible-but-wrong tool. Four buckets (correct call / correct refusal / correct clarification / unsafe plausible action) with different weights is strictly better, because their production costs are wildly different.</p>
+<p>Second, and subtler: <strong>my synthetic tasks can flatter the schemas that generated them.</strong> The synthesizer reads the catalog to write tasks — so a badly-written catalog produces tasks phrased in its own bad vocabulary. The fix is held-out authoring: derive intents from real integration failures, paraphrase them through a step that never sees tool names, and freeze the test split before touching any descriptions.</p>
+<p>Both are now <a href="https://github.com/TengByte/mcpgrade/issues">tracked issues on the repo</a>. Which is the point of publishing your methodology instead of just your leaderboard: readers debug your benchmark the way they&#39;d debug your code.</p>
+<p>Full raw numbers and methodology live in the repo: <a href="https://github.com/TengByte/mcpgrade/blob/main/docs/eval-calibration.md">docs/eval-calibration.md</a>. If you build agent benchmarks and have found other systematic unfairness patterns, I want to hear about them — open an issue.</p>
+<hr>
+<p><em>I build production AI agent integrations at a large tech company; mcpgrade is a personal project. The eval runs on any OpenAI-compatible endpoint — bring your own key.</em></p>
+
+<hr class="post-end">
+<p class="post-nav"><a href="/writing.html">← All writing</a></p>
+</article>
+<footer class="site">
+  <span>© 2026 Teng Li</span>
+  <span class="foot-links">
+    <a href="https://github.com/TengByte">GitHub</a>
+    <a href="https://www.linkedin.com/in/teng-li-3b0007110/">LinkedIn</a>
+    <a href="/feed.xml">RSS</a>
+  </span>
+</footer>
+</main>
+</body>
+</html>
