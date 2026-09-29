@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A 14-person company is moving $1B through SMS and email. Its bottleneck is the one I&#39;ve been measuring. · Teng Li</title>
+<meta name="description" content="Instinct&#39;s growth curve isn&#39;t a model quality curve. It&#39;s a permissions curve. That lines up uncomfortably well with what I found scanning 36 MCP servers.">
+<meta property="og:title" content="A 14-person company is moving $1B through SMS and email. Its bottleneck is the one I&#39;ve been measuring. · Teng Li">
+<meta property="og:description" content="Instinct&#39;s growth curve isn&#39;t a model quality curve. It&#39;s a permissions curve. That lines up uncomfortably well with what I found scanning 36 MCP servers.">
+<meta property="og:image" content="https://tengli.dev/og-card.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tengli.dev/og-card.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="application/rss+xml" title="Teng Li" href="/feed.xml">
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "defe20d26eeb449a922ccc8369be85c0"}'></script>
+</head>
+<body>
+<main>
+<header class="site">
+  <a class="name" href="/">Teng Li <span>· ML Engineer</span></a>
+  <nav><a href="/">Home</a><a href="/writing.html">Writing</a><a href="/about.html">About</a><a href="/feed.xml">RSS</a></nav>
+</header>
+<article>
+<h1>A 14-person company is moving $1B through SMS and email. Its bottleneck is the one I&#39;ve been measuring.</h1>
+<p class="post-meta"><time datetime="2026-09-29">2026-09-29</time><span class="chips"><span class="chip">Agents</span><span class="chip">MCP</span><span class="chip">Engineering</span></span></p>
+<p>Instinct raised a $1B Series C this week at a $10B valuation. Fourteen employees. Invite-only. Over $1B in annualized transaction volume, half of it travel. Zero marketing spend.</p>
+<p>The valuation isn&#39;t the interesting part. The interface is: there is no app. You text it, you call it, you email it. It has its own phone number and its own computer, and it calls you when something is urgent.</p>
+<p>That one decision pushes every hard problem into a single layer — the place where the agent actually touches the world. Which is the layer I&#39;ve spent the last two months measuring, from the opposite end.</p>
+<h2>The number nobody is quoting</h2>
+<p>Buried in the founder&#39;s interview is a metric that tells you more about this industry than any benchmark I&#39;ve seen this year:</p>
+<blockquote><p>After three weeks on the product, 40% of users have shared a personal credit card. Once a user shares at least one piece of sensitive information, retention is 80%.</p></blockquote>
+<p>He treats time to first credit card as his proxy for trust.</p>
+<p><em>Read that again.</em> The growth curve of a $10B company is a permissions curve. Nobody is churning because the model reasoned poorly. They&#39;re churning because they never climbed high enough up the trust ladder for the thing to be useful.</p>
+<h2>This is the same finding from the other side</h2>
+<p>Two months ago I <a href="/posts/mcp-servers-failing-agents.html">lint-scanned 36 popular MCP servers</a> and found that roughly a third are effectively unusable by an agent. Spec-compliant. Well-built. Still broken in practice — ambiguous names, undescribed parameters, errors that tell the model nothing.</p>
+<p>Instinct is measuring how fast a user will grant an agent permission to act. I was measuring whether, once granted, the agent can act competently.</p>
+<p>Different ends of the same pipe. Neither end is the model.</p>
+<h2>1. A thinner interface means more integration work, not less</h2>
+<p>&quot;No app&quot; sounds like less engineering. It is the opposite.</p>
+<p>When your entire surface is SMS and a phone call, there is no UI to disambiguate intent, no dropdown to constrain a parameter, no confirmation modal to hide behind. All of that complexity doesn&#39;t disappear — it relocates into tool design, into the permission model, and into how the agent recovers when a call fails.</p>
+<p>The teams shipping the thinnest interfaces are carrying the heaviest integration burden. Worth remembering the next time a clean demo makes the underlying problem look solved.</p>
+<h2>2. Trust is a ladder, and every rung is a product decision</h2>
+<p>Read-only. Then write. Then spend my money.</p>
+<p>Most agent products treat permissions as a security checkbox bolted on before launch. Instinct&#39;s numbers suggest it&#39;s the core growth mechanic: each rung a user climbs unlocks a materially more valuable product, and the climb takes weeks.</p>
+<p>If that&#39;s right, the interesting questions stop being &quot;is this secure&quot; and become:</p>
+<ul>
+<li>What&#39;s the smallest genuinely useful thing the agent can do at rung one?</li>
+<li>What does approval feel like at rung three, when the action is irreversible and the user is on a phone?</li>
+<li>How do you earn the next rung instead of asking for it at signup?</li>
+</ul>
+<p>OpenAI&#39;s <a href="https://github.com/openai/codex">recently open-sourced Codex harness</a> gets this right, whatever you think of the product. Approval requests and interruptibility aren&#39;t bolted on — they&#39;re first-class citizens of the execution loop, sitting alongside tool invocation and event streaming.</p>
+<p>Approval is the loop. Most agent frameworks still treat it as middleware.</p>
+<h2>3. Proactive agents have a different compute shape</h2>
+<p>Instinct&#39;s founder says he spends 40% of his time on compute. Not because of user count — because of shape. The agent wakes at 6am to prepare your day. That background load simply does not exist in a request-response product. He reports 3–8x efficiency from splitting background work from real-time interaction in a custom inference deployment.</p>
+<p>In the same month, OpenAI reported that harness-level changes alone — retained reasoning and context compaction — moved GPT-5.6 Sol from 13.3% to 38.3% on ARC-AGI-3 while cutting output tokens 6x.</p>
+<p>Same model. Different scaffolding. Two very different bills.</p>
+<p>We spent two years optimizing prompts. The next round of gains looks like it lives in the execution loop: what you load into context, when you drop it, and which work runs on the user&#39;s schedule instead of the request&#39;s.</p>
+<h2>The common thread</h2>
+<p>There&#39;s a background assumption that this race gets won by whoever has the best model. The evidence keeps pointing somewhere less glamorous.</p>
+<p>A fourteen-person company is moving a billion dollars a year through SMS and email, and its founder&#39;s two stated bottlenecks are how fast users will trust it and how much compute the background work eats. Neither is a modeling problem. Both live in the layer between the model and the world — connectors, auth, tool schemas, permission ladders, approval UX, retry semantics, context budgets.</p>
+<p>That layer doesn&#39;t demo well. It shows up in your error rate and your invoice.</p>
+<p>It&#39;s also, as far as I can tell, where the next few years of differentiation actually are.</p>
+<hr>
+<p><em>Next up: mcpgrade currently scores whether a tool is usable by an agent. It says nothing about what that tool costs — how many tokens a typical call drags into context, and how much of that survives to the next turn. Given the numbers above, that might be the more interesting question. I&#39;m adding a context-cost dimension and re-running the 36.</em></p>
+
+<hr class="post-end">
+<p class="post-nav"><a href="/writing.html">← All writing</a></p>
+</article>
+<footer class="site">
+  <span>© 2026 Teng Li</span>
+  <span class="foot-links">
+    <a href="https://github.com/TengByte">GitHub</a>
+    <a href="https://www.linkedin.com/in/teng-li-3b0007110/">LinkedIn</a>
+    <a href="/feed.xml">RSS</a>
+  </span>
+</footer>
+</main>
+</body>
+</html>

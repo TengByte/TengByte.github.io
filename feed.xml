@@ -4,6 +4,13 @@
   <link>https://tengli.dev</link>
   <description>Teng Li — ML Engineer</description>
   <item>
+    <title>A 14-person company is moving $1B through SMS and email. Its bottleneck is the one I&#39;ve been measuring.</title>
+    <link>https://tengli.dev/posts/instinct-permissions-bottleneck.html</link>
+    <guid>https://tengli.dev/posts/instinct-permissions-bottleneck.html</guid>
+    <pubDate>Tue, 29 Sep 2026 00:00:00 GMT</pubDate>
+    <description>Instinct&#39;s growth curve isn&#39;t a model quality curve. It&#39;s a permissions curve. That lines up uncomfortably well with what I found scanning 36 MCP servers.</description>
+  </item>
+  <item>
     <title>My eval said a perfect MCP server was broken. It was the eval that was lying.</title>
     <link>https://tengli.dev/posts/calibrating-mcp-evals.html</link>
     <guid>https://tengli.dev/posts/calibrating-mcp-evals.html</guid>
