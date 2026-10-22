@@ -28,6 +28,7 @@
 <article>
 <h1>My local AI summary had valid sources. It still connected the wrong facts.</h1>
 <p class="post-meta"><time datetime="2026-10-21">2026-10-21</time><span class="chips"><span class="chip">Agents</span><span class="chip">Engineering</span></span></p>
+<p><em>Companion engineering notes for <a href="https://dev.to/tengbyte/slothpulse-i-wrote-the-code-gemma-can-draft-the-standup-2bhp">my Hacktoberfest Week 3 entry on DEV</a>. The submission includes the short demo and setup; this post follows the source-validation failures in more detail.</em></p>
 <p>After a day of writing code, reconstructing that day from Git commits is an unappealing second writing task. <a href="https://github.com/TengByte/slothpulse">SlothPulse</a> uses local Gemma to turn those commits and a traceback into a standup draft, with a source receipt beside each item.</p>
 <p>The first version produced a tidy developer recap. It also described an unspecified user-reported error as a failure in the recap tool itself. The output had the headings I asked for. The relationship between the facts was unsupported.</p>
 <p>I built the CLI for Hacktoberfest’s “Slow and Steady” theme. The product loop is short: preview the input, generate locally, review the Markdown. The engineering lesson was in deciding what the model was allowed to connect.</p>
