@@ -4,6 +4,13 @@
   <link>https://tengli.dev</link>
   <description>Teng Li — ML Engineer</description>
   <item>
+    <title>My local AI summary had valid sources. It still connected the wrong facts.</title>
+    <link>https://tengli.dev/posts/slothpulse-source-bindings.html</link>
+    <guid>https://tengli.dev/posts/slothpulse-source-bindings.html</guid>
+    <pubDate>Wed, 21 Oct 2026 12:00:00 -0700</pubDate>
+    <description>Building SlothPulse exposed three different checks: valid JSON, complete source coverage, and the right relationship between a blocker and its follow-up.</description>
+  </item>
+  <item>
     <title>Instinct moves $1B a year through SMS and email. Its bottleneck is the one I&#39;ve been measuring.</title>
     <link>https://tengli.dev/posts/instinct-permissions-bottleneck.html</link>
     <guid>https://tengli.dev/posts/instinct-permissions-bottleneck.html</guid>

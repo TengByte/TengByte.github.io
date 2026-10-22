@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My local AI summary had valid sources. It still connected the wrong facts. · Teng Li</title>
+<meta name="description" content="Building SlothPulse exposed three different checks: valid JSON, complete source coverage, and the right relationship between a blocker and its follow-up.">
+<meta property="og:title" content="My local AI summary had valid sources. It still connected the wrong facts. · Teng Li">
+<meta property="og:description" content="Building SlothPulse exposed three different checks: valid JSON, complete source coverage, and the right relationship between a blocker and its follow-up.">
+<meta property="og:image" content="https://tengli.dev/og-card.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tengli.dev/og-card.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="application/rss+xml" title="Teng Li" href="/feed.xml">
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "defe20d26eeb449a922ccc8369be85c0"}'></script>
+<link rel="canonical" href="https://tengli.dev/posts/slothpulse-source-bindings.html">
+</head>
+<body>
+<main>
+<header class="site">
+  <a class="name" href="/">Teng Li <span>· ML Engineer</span></a>
+  <nav><a href="/">Home</a><a href="/writing.html">Writing</a><a href="/about.html">About</a><a href="/feed.xml">RSS</a></nav>
+</header>
+<article>
+<h1>My local AI summary had valid sources. It still connected the wrong facts.</h1>
+<p class="post-meta"><time datetime="2026-10-21">2026-10-21</time><span class="chips"><span class="chip">Agents</span><span class="chip">Engineering</span></span></p>
+<p>The first version of <a href="https://github.com/TengByte/slothpulse">SlothPulse</a> produced a tidy developer recap. It also described an unspecified user-reported error as a failure in the recap tool itself. The output had the headings I asked for. The relationship between the facts was unsupported.</p>
+<p>I built SlothPulse for Hacktoberfest’s “Slow and Steady” theme: a small local CLI that turns recent Git commits and an optional traceback into a standup draft. Downloaded Gemma weights run through Ollama; ordinary Python handles collection and saving. The interesting engineering work turned out to be deciding what the model was allowed to connect.</p>
+<h2>Three checks that look similar until they fail</h2>
+<p>There are at least three separate questions to ask about this output:</p>
+<ol>
+<li><strong>Is it parseable?</strong> Does the response satisfy the JSON structure?</li>
+<li><strong>Did it account for the supplied sources?</strong> Are required commits and reported errors represented?</li>
+<li><strong>Did it preserve the relationship?</strong> Does an error’s follow-up cite that error rather than an unrelated commit?</li>
+</ol>
+<p>A fourth question remains outside these checks: is the model’s interpretation actually correct? It is easy to imply that the first three answer the fourth. They do not.</p>
+<h2>Arrays made missing evidence easy to express</h2>
+<p>My first structured plan used arrays of items with prose and source IDs. In local runs it could omit a blocker or leave a commit uncovered. One five-commit experiment still failed after its retry. The JSON could be well formed while the recap skipped evidence I intended it to cover.</p>
+<p>I changed the generation contract to an object with one required key for every source. For a single commit and error, the response shape is:</p>
+<pre><code>{
+  "completed": {"C1": "A summary of this commit"},
+  "blockers": {
+    "E1": {
+      "summary": "A summary of this reported error",
+      "next_step": "One suggested investigation"
+    }
+  },
+  "next_steps": []
+}</code></pre>
+<p>The schema is created from the collected evidence. Python checks the exact key sets and assigns references from those keys. The model supplies the prose; it does not choose whether a required receipt exists. A second invalid response stops without appending a digest.</p>
+<p>This is a deliberately narrow tradeoff. One summary per commit is sometimes repetitive. At most eight commits fit the recap, so it can miss part of a busy day. I preferred a small contract I could inspect to a more elegant paragraph with unclear omissions.</p>
+<h2>A known ID can still be the wrong ID</h2>
+<p>A later plan exposed the more useful bug: an investigation of an error was attached to a commit. Both source IDs existed. A validator that only asked “is this ID in the input?” had nothing to object to.</p>
+<p>The current contract keeps an error’s summary and its suggested investigation inside the same <code>E</code> object. Python derives the blocker and next-step sections from that object and gives them the same reference. When an error is present, extra commit-based next steps are rejected. With no errors, the model may suggest up to two follow-ups citing supplied commits.</p>
+<p>That removes one opportunity to mix sources. It does not prevent a bad interpretation within the object. The captured Gemma output says a <code>KeyError: 'result'</code> occurs while downloading job results. The trace supports a missing dictionary key in a worker function; it does not establish the complete application behavior or root cause. The generated Markdown labels the error user-reported and its cause unverified.</p>
+<h2>Local inference also needed a concrete check</h2>
+<p>Calling <code>localhost</code> was not enough to establish the execution boundary: Ollama can expose cloud-backed models through its local API. Before sending project context, SlothPulse inspects model metadata and rejects remote or unverifiable models. The tested server runs with <code>OLLAMA_NO_CLOUD=1</code>, and the HTTP client bypasses environment proxies.</p>
+<p>The user can preview the sanitized context before inference. Common credential patterns are masked, but this is best-effort pattern matching, not a complete secret scanner. Reports and digests can still contain private project details. The trust boundary includes the local server and the person deciding where those files go.</p>
+<h2>What the measurements establish</h2>
+<p>I ran three synthetic scenarios three times each against local <code>gemma:latest</code> on an Apple M5 with 16 GB RAM. Median external process times were 7.668 seconds for five commits plus an error, 6.495 seconds for commits alone, and 3.926 seconds for an error without a repository. All nine final runs passed the documented structural and workflow checks on their first generation attempt.</p>
+<p>Those nine passes are not a factual-accuracy score. The batch was small and ordered, with locally available weights. It did not measure a person’s time savings or compare against writing standup notes manually. The unit suite separately covers 23 boundary cases, and runs on Python 3.8 and 3.14 in CI.</p>
+<p>The synthetic fixture, exact sanitized input, validated plan, terminal cast, and raw measurements are in the repository. The <a href="https://raw.githubusercontent.com/TengByte/slothpulse/main/demo-assets/demo.mp4">48-second video</a> replays a real captured call and its wait, with explanatory cards around it.</p>
+<h2>What I would evaluate next</h2>
+<p>The next useful evaluation is held-out, misleading source material: ambiguous commit subjects, traces whose application is unknown, and instructions embedded in otherwise ordinary input. A human would grade whether each sentence is supported, whether uncertainty survived, and how much correction the draft needed.</p>
+<p>For this version, the gain is a shorter route from a generated sentence to the evidence it was supposed to summarize. I can point to the association the code enforces and to the interpretation it leaves for review. That distinction matters even for a small daily note.</p>
+<p><a href="https://slothpulse.chicangel12.chatgpt.site">Interactive recorded demo</a> · <a href="https://github.com/TengByte/slothpulse">Code and setup</a> · <a href="https://github.com/TengByte/slothpulse/blob/main/BENCHMARK.md">Measurements and limits</a> · <a href="https://github.com/TengByte/slothpulse/blob/main/BUILD_LOG.md">Edited build log</a></p>
+<hr>
+<p><em>SlothPulse is a personal project. Codex assisted with implementation, tests, demo preparation, and this draft. The application’s inference uses local Gemma. The demonstration repository and its authors are synthetic; its key-shaped value is deliberately fake.</em></p>
+<hr class="post-end">
+<p class="post-nav"><a href="/writing.html">← All writing</a></p>
+</article>
+
+<footer class="site">
+  <span>© 2026 Teng Li</span>
+  <span class="foot-links">
+    <a href="https://github.com/TengByte">GitHub</a>
+    <a href="https://www.linkedin.com/in/teng-li-3b0007110/">LinkedIn</a>
+    <a href="/feed.xml">RSS</a>
+  </span>
+</footer>
+</main>
+</body>
+</html>
