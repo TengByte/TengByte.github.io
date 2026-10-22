@@ -28,8 +28,9 @@
 <article>
 <h1>My local AI summary had valid sources. It still connected the wrong facts.</h1>
 <p class="post-meta"><time datetime="2026-10-21">2026-10-21</time><span class="chips"><span class="chip">Agents</span><span class="chip">Engineering</span></span></p>
-<p>The first version of <a href="https://github.com/TengByte/slothpulse">SlothPulse</a> produced a tidy developer recap. It also described an unspecified user-reported error as a failure in the recap tool itself. The output had the headings I asked for. The relationship between the facts was unsupported.</p>
-<p>I built SlothPulse for Hacktoberfest’s “Slow and Steady” theme: a small local CLI that turns recent Git commits and an optional traceback into a standup draft. Downloaded Gemma weights run through Ollama; ordinary Python handles collection and saving. The interesting engineering work turned out to be deciding what the model was allowed to connect.</p>
+<p>After a day of writing code, reconstructing that day from Git commits is an unappealing second writing task. <a href="https://github.com/TengByte/slothpulse">SlothPulse</a> uses local Gemma to turn those commits and a traceback into a standup draft, with a source receipt beside each item.</p>
+<p>The first version produced a tidy developer recap. It also described an unspecified user-reported error as a failure in the recap tool itself. The output had the headings I asked for. The relationship between the facts was unsupported.</p>
+<p>I built the CLI for Hacktoberfest’s “Slow and Steady” theme. The product loop is short: preview the input, generate locally, review the Markdown. The engineering lesson was in deciding what the model was allowed to connect.</p>
 <h2>Three checks that look similar until they fail</h2>
 <p>There are at least three separate questions to ask about this output:</p>
 <ol>
@@ -37,7 +38,7 @@
 <li><strong>Did it account for the supplied sources?</strong> Are required commits and reported errors represented?</li>
 <li><strong>Did it preserve the relationship?</strong> Does an error’s follow-up cite that error rather than an unrelated commit?</li>
 </ol>
-<p>A fourth question remains outside these checks: is the model’s interpretation actually correct? It is easy to imply that the first three answer the fourth. They do not.</p>
+<p>None of these checks establishes whether the model’s interpretation is correct. They give the person reviewing the draft a shorter route back to the input.</p>
 <h2>Arrays made missing evidence easy to express</h2>
 <p>My first structured plan used arrays of items with prose and source IDs. In local runs it could omit a blocker or leave a commit uncovered. One five-commit experiment still failed after its retry. The JSON could be well formed while the recap skipped evidence I intended it to cover.</p>
 <p>I changed the generation contract to an object with one required key for every source. For a single commit and error, the response shape is:</p>
@@ -52,7 +53,7 @@
   "next_steps": []
 }</code></pre>
 <p>The schema is created from the collected evidence. Python checks the exact key sets and assigns references from those keys. The model supplies the prose; it does not choose whether a required receipt exists. A second invalid response stops without appending a digest.</p>
-<p>This is a deliberately narrow tradeoff. One summary per commit is sometimes repetitive. At most eight commits fit the recap, so it can miss part of a busy day. I preferred a small contract I could inspect to a more elegant paragraph with unclear omissions.</p>
+<p>The tradeoff is repetition: one summary per commit can read awkwardly, and the eight-commit cap can miss part of a busy day. The window and those limits are explicit in the saved note.</p>
 <h2>A known ID can still be the wrong ID</h2>
 <p>A later plan exposed the more useful bug: an investigation of an error was attached to a commit. Both source IDs existed. A validator that only asked “is this ID in the input?” had nothing to object to.</p>
 <p>The current contract keeps an error’s summary and its suggested investigation inside the same <code>E</code> object. Python derives the blocker and next-step sections from that object and gives them the same reference. When an error is present, extra commit-based next steps are rejected. With no errors, the model may suggest up to two follow-ups citing supplied commits.</p>
@@ -62,7 +63,7 @@
 <p>The user can preview the sanitized context before inference. Common credential patterns are masked, but this is best-effort pattern matching, not a complete secret scanner. Reports and digests can still contain private project details. The trust boundary includes the local server and the person deciding where those files go.</p>
 <h2>What the measurements establish</h2>
 <p>I ran three synthetic scenarios three times each against local <code>gemma:latest</code> on an Apple M5 with 16 GB RAM. Median external process times were 7.668 seconds for five commits plus an error, 6.495 seconds for commits alone, and 3.926 seconds for an error without a repository. All nine final runs passed the documented structural and workflow checks on their first generation attempt.</p>
-<p>Those nine passes are not a factual-accuracy score. The batch was small and ordered, with locally available weights. It did not measure a person’s time savings or compare against writing standup notes manually. The unit suite separately covers 23 boundary cases, and runs on Python 3.8 and 3.14 in CI.</p>
+<p>This small, ordered batch measures workflow behavior and latency. It does not score factual accuracy or human time savings. The unit suite separately covers 23 boundary cases, and passes on Python 3.8 and 3.14 in CI.</p>
 <p>The synthetic fixture, exact sanitized input, validated plan, terminal cast, and raw measurements are in the repository. The <a href="https://raw.githubusercontent.com/TengByte/slothpulse/main/demo-assets/demo.mp4">48-second video</a> replays a real captured call and its wait, with explanatory cards around it.</p>
 <h2>What I would evaluate next</h2>
 <p>The next useful evaluation is held-out, misleading source material: ambiguous commit subjects, traces whose application is unknown, and instructions embedded in otherwise ordinary input. A human would grade whether each sentence is supported, whether uncertainty survived, and how much correction the draft needed.</p>
