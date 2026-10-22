@@ -28,8 +28,18 @@
 <article>
 <h1>My local AI summary had valid sources. It still connected the wrong facts.</h1>
 <p class="post-meta"><time datetime="2026-10-21">2026-10-21</time><span class="chips"><span class="chip">Agents</span><span class="chip">Engineering</span></span></p>
-<p><em>Companion engineering notes for <a href="https://dev.to/tengbyte/slothpulse-i-wrote-the-code-gemma-can-draft-the-standup-2bhp">my Hacktoberfest Week 3 entry on DEV</a>. The submission includes the short demo and setup; this post follows the source-validation failures in more detail.</em></p>
+<p><em>Companion engineering notes for <a href="https://dev.to/tengbyte/slothpulse-i-wrote-the-code-gemma-can-draft-the-standup-2bhp">my Hacktoberfest Week 3 entry on DEV</a>. Watch the demo below, then follow the source-validation failures in more detail.</em></p>
 <p>After a day of writing code, reconstructing that day from Git commits is an unappealing second writing task. <a href="https://github.com/TengByte/slothpulse">SlothPulse</a> uses local Gemma to turn those commits and a traceback into a standup draft, with a source receipt beside each item.</p>
+<h2 id="demo">Watch SlothPulse in 48 seconds</h2>
+<figure class="demo-video">
+  <video controls playsinline preload="none" width="1600" height="900" poster="/assets/slothpulse/poster.png" aria-label="SlothPulse recorded demo with English narration" aria-describedby="demo-caption">
+    <source src="/assets/slothpulse/demo.mp4" type="video/mp4">
+    <track kind="captions" src="/assets/slothpulse/narration.vtt" srclang="en" label="English" default>
+    <a href="/assets/slothpulse/demo.mp4">Watch the SlothPulse demo</a>.
+  </video>
+  <figcaption id="demo-caption">English narration and captions. A timestamped replay of a real local Gemma call, using synthetic commits and a captured error. The recorded inference wait plays at its actual speed.</figcaption>
+</figure>
+<p><a href="https://slothpulse.chicangel12.chatgpt.site/#replay">Explore the source receipts</a> · <a href="https://github.com/TengByte/slothpulse">Code and setup</a> · <a href="/assets/slothpulse/demo.mp4">Download the video</a></p>
 <p>The first version produced a tidy developer recap. It also described an unspecified user-reported error as a failure in the recap tool itself. The output had the headings I asked for. The relationship between the facts was unsupported.</p>
 <p>I built the CLI for Hacktoberfest’s “Slow and Steady” theme. The product loop is short: preview the input, generate locally, review the Markdown. The engineering lesson was in deciding what the model was allowed to connect.</p>
 <h2>Three checks that look similar until they fail</h2>

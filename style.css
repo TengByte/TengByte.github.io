@@ -198,3 +198,15 @@ footer.site a:hover { color: var(--accent); }
 }
 
 .project-demo { width: 100%; border-radius: 12px; margin-top: 14px; border: 1px solid rgba(128,128,128,.25); display: block; }
+
+/* SlothPulse demo */
+.project-feature { padding: 1.4rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.project-feature .block-title { margin-bottom: 0.6rem; }
+.project-feature h2 { margin: 0; font-size: 1.4rem; line-height: 1.35; }
+.project-feature > p:not(.block-title) { color: var(--muted); font-size: 0.95rem; }
+.demo-video { margin: 1.25rem 0; }
+.demo-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #101719; border: 1px solid var(--border); border-radius: 10px; }
+.demo-video figcaption { margin-top: 0.55rem; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+.project-links { display: flex; flex-wrap: wrap; gap: 0.6rem 1.1rem; font-size: 0.9rem; }
+.project-links a { text-decoration: none; }
+.project-links a:hover { text-decoration: underline; }
